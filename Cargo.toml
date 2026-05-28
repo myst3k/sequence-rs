@@ -20,7 +20,7 @@ tokio = { version = "1" }
 bon = "3"
 serde = { version = "1", default-features = false }
 serde_json = "1"
-thiserror = "1.0.63"
+thiserror = "2"
 
 [dependencies]
 sequence-rs-http = { path = "sequence-rs-http" }
@@ -44,5 +44,5 @@ tracing-subscriber = { workspace = true }
 eyre = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 wiremock = "0.6"
-rstest = "0.23"
+rstest = "0.26"
 serde_json = { workspace = true }
