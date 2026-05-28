@@ -28,10 +28,11 @@ pub use clients::base::{
 };
 
 use bon::Builder;
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretBox};
 use sequence_rs_http::HttpError;
 use std::collections::HashMap;
 use std::env;
+use std::sync::Arc;
 use thiserror::Error;
 
 pub use crate::sequence::Sequence;
@@ -129,16 +130,22 @@ impl Config {
     }
 }
 
+fn wrap_key(key: String) -> Arc<SecretBox<String>> {
+    Arc::new(SecretBox::new(Box::new(key)))
+}
+
 #[derive(Debug, Clone, Builder)]
-#[builder(on(String, into), on(Secret<String>, into))]
 pub struct Credentials {
-    pub api_key: Secret<String>,
+    // `Arc` so a cloned `Credentials`/`Sequence` shares one zeroizable secret
+    // (secrecy 0.10 doesn't make `SecretBox<String>` itself `Clone`).
+    #[builder(with = |api_key: String| wrap_key(api_key))]
+    pub api_key: Arc<SecretBox<String>>,
 }
 
 impl Default for Credentials {
     fn default() -> Self {
         Self {
-            api_key: Secret::new(String::new()),
+            api_key: wrap_key(String::new()),
         }
     }
 }
@@ -152,7 +159,7 @@ impl Credentials {
         }
         let api_key = env::var("SEQUENCE_API_KEY").ok()?;
         Some(Self {
-            api_key: api_key.into(),
+            api_key: wrap_key(api_key),
         })
     }
 
