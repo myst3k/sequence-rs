@@ -23,6 +23,10 @@ cp .env.example .env  # add your SEQUENCE_API_KEY
 cargo run --example playground --features env-file
 ```
 
+The optional `env-file` feature loads a local `.env` into the environment (via `dotenvy`)
+before `Credentials::from_env()` reads `SEQUENCE_API_KEY`. Without it, the real process
+environment is used.
+
 ```rust
 use sequence_rs::prelude::*;
 use sequence_rs::{Credentials, ListAccountsParams, Sequence};
