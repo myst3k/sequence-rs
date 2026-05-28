@@ -128,9 +128,7 @@ async fn called_reason_header_is_sent() {
         .await;
 
     let client = Sequence::with_config(
-        Credentials::builder()
-            .api_key("seq_test_key".to_string())
-            .build(),
+        Credentials::new("seq_test_key"),
         Config {
             api_base_url: format!("{}/", server.uri()),
             rate_limit: None,

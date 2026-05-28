@@ -17,7 +17,6 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 reqwest = { version = "0.13", default-features = false }
 tokio = { version = "1" }
-bon = "3"
 serde = { version = "1", default-features = false }
 serde_json = "1"
 thiserror = "2"
@@ -27,7 +26,6 @@ sequence-rs-http = { path = "sequence-rs-http" }
 sequence-rs-model = { path = "sequence-rs-model" }
 tracing = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-bon = { workspace = true }
 secrecy = "0.10"
 dotenvy = { version = "0.15", optional = true }
 serde = { workspace = true }

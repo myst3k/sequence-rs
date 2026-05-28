@@ -79,7 +79,7 @@ async fn no_retries_makes_a_single_attempt_and_returns_immediately() {
         .await;
 
     let client = Sequence::with_config(
-        Credentials::builder().api_key("k".to_string()).build(),
+        Credentials::new("k"),
         Config {
             api_base_url: format!("{}/", server.uri()),
             rate_limit: None,

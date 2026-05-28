@@ -27,7 +27,6 @@ pub use clients::base::{
     ListRulesParams,
 };
 
-use bon::Builder;
 use secrecy::{ExposeSecret, SecretBox};
 use sequence_rs_http::HttpError;
 use std::collections::HashMap;
@@ -130,37 +129,34 @@ impl Config {
     }
 }
 
-fn wrap_key(key: String) -> Arc<SecretBox<String>> {
-    Arc::new(SecretBox::new(Box::new(key)))
-}
-
-#[derive(Debug, Clone, Builder)]
+#[derive(Debug, Clone)]
 pub struct Credentials {
     // `Arc` so a cloned `Credentials`/`Sequence` shares one zeroizable secret
     // (secrecy 0.10 doesn't make `SecretBox<String>` itself `Clone`).
-    #[builder(with = |api_key: String| wrap_key(api_key))]
     pub api_key: Arc<SecretBox<String>>,
 }
 
 impl Default for Credentials {
     fn default() -> Self {
-        Self {
-            api_key: wrap_key(String::new()),
-        }
+        Self::new("")
     }
 }
 
 impl Credentials {
+    /// Build credentials from a raw API key.
+    pub fn new(api_key: impl Into<String>) -> Self {
+        Self {
+            api_key: Arc::new(SecretBox::new(Box::new(api_key.into()))),
+        }
+    }
+
     /// Load `SEQUENCE_API_KEY` from the process environment.
     pub fn from_env() -> Option<Self> {
         #[cfg(feature = "env-file")]
         {
             let _ = dotenvy::dotenv();
         }
-        let api_key = env::var("SEQUENCE_API_KEY").ok()?;
-        Some(Self {
-            api_key: wrap_key(api_key),
-        })
+        Some(Self::new(env::var("SEQUENCE_API_KEY").ok()?))
     }
 
     /// Build the `Authorization: Bearer …` header.
@@ -181,17 +177,13 @@ mod tests {
 
     #[test]
     fn credentials_builder() {
-        let creds = Credentials::builder()
-            .api_key("seq_test_123".to_string())
-            .build();
+        let creds = Credentials::new("seq_test_123");
         assert_eq!(creds.api_key.expose_secret(), "seq_test_123");
     }
 
     #[test]
     fn auth_header_is_bearer() {
-        let creds = Credentials::builder()
-            .api_key("seq_test_123".to_string())
-            .build();
+        let creds = Credentials::new("seq_test_123");
         let headers = creds.auth_headers();
         assert_eq!(headers.get("Authorization").unwrap(), "Bearer seq_test_123");
     }

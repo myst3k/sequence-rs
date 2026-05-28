@@ -19,7 +19,7 @@ pub fn client_with(
     rate_limit: Option<sequence_rs::RateLimit>,
 ) -> Sequence {
     Sequence::with_config(
-        Credentials::builder().api_key(TEST_KEY.to_string()).build(),
+        Credentials::new(TEST_KEY),
         Config {
             api_base_url: format!("{}/", base_url.trim_end_matches('/')),
             rate_limit,
