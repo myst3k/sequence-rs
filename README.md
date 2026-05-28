@@ -1,9 +1,20 @@
 # sequence-rs
 
+[![CI](https://github.com/myst3k/sequence-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/myst3k/sequence-rs/actions/workflows/ci.yml)
+
 Rust client for the [Sequence Platform API](https://app.getsequence.io/api/platform/) —
 typed models, auto-pagination, client-side rate limiting, and retries with `Retry-After`.
 
 > **Unofficial.** A community project, not affiliated with or endorsed by Sequence.
+
+## Install
+
+```toml
+[dependencies]
+sequence-rs = { git = "https://github.com/myst3k/sequence-rs" }
+```
+
+Requires a Tokio runtime and a recent stable Rust (uses async fn in traits, Rust ≥ 1.75).
 
 ## Quick start
 
