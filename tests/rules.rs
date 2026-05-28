@@ -48,12 +48,12 @@ async fn get_rule_deserializes_full_shape() {
 }
 
 #[tokio::test]
-async fn trigger_rule_without_key_sends_no_idempotency_header() {
+async fn trigger_rule_without_key_auto_generates_idempotency_header() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path(format!("/rules/{RULE_ID}/trigger")))
-        // The mock only matches when the header is ABSENT (no fabricated key).
-        .and(|req: &wiremock::Request| !req.headers.contains_key("idempotency-key"))
+        // With no caller key, the client generates one, so the header is present.
+        .and(header_exists("idempotency-key"))
         .respond_with(
             ResponseTemplate::new(202).set_body_json(envelope(json!({ "executionId": "exec-1" }))),
         )

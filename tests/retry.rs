@@ -122,8 +122,9 @@ async fn gives_up_after_max_attempts() {
 
 #[tokio::test]
 async fn retries_transient_post_regardless_of_idempotency_key() {
-    // Retries are decided by the failure being transient, not by the key. A
-    // POST without a key still retries on 500 — the caller owns dedup safety.
+    // Retries are decided by the failure being transient, not by the key. A POST
+    // without a caller key still retries on 500 (the client adds a generated key,
+    // so those retries are dedupe-safe).
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/transfers"))
@@ -235,10 +236,10 @@ async fn trigger_rule_resends_idempotency_key_on_every_retry() {
     }
 }
 
-/// And the inverse: when no key is supplied, the client never invents one — not
-/// on the first attempt, not on any retry.
+/// When no key is supplied, the client generates one for the call and reuses
+/// that same value on every retry, so its own retries can't double-apply.
 #[tokio::test]
-async fn no_idempotency_key_is_never_fabricated_across_retries() {
+async fn auto_generated_idempotency_key_is_stable_across_retries() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/transfers"))
@@ -259,12 +260,22 @@ async fn no_idempotency_key_is_never_fabricated_across_retries() {
 
     let requests = server.received_requests().await.unwrap();
     assert_eq!(requests.len(), 3);
-    for r in &requests {
-        assert!(
-            !r.headers.contains_key("idempotency-key"),
-            "client must not fabricate an idempotency-key"
-        );
-    }
+    let keys: Vec<String> = requests
+        .iter()
+        .map(|r| {
+            r.headers
+                .get("idempotency-key")
+                .expect("client should auto-generate an idempotency-key when none is supplied")
+                .to_str()
+                .unwrap()
+                .to_string()
+        })
+        .collect();
+    assert!(!keys[0].is_empty(), "generated key must be non-empty");
+    assert!(
+        keys.iter().all(|k| k == &keys[0]),
+        "generated key must be stable across retries, got {keys:?}"
+    );
 }
 
 #[tokio::test]

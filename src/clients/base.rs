@@ -144,7 +144,20 @@ where
         idempotency_key: Option<&str>,
     ) -> ClientResult<String> {
         let url = self.api_url(segments)?;
-        let headers = self.build_headers(idempotency_key);
+        // Generate a key when none is given so our retries can't double-apply (per-call, not cross-call dedup).
+        let generated;
+        let key = match idempotency_key {
+            Some(k) => k,
+            None => {
+                generated = uuid::Uuid::now_v7().to_string();
+                tracing::debug!(
+                    idempotency_key = %generated,
+                    "auto-generated idempotency key for mutating request"
+                );
+                generated.as_str()
+            }
+        };
+        let headers = self.build_headers(Some(key));
         Ok(self.get_http().post(&url, Some(&headers), payload).await?)
     }
 
@@ -243,9 +256,10 @@ where
 
     /// `POST /rules/{id}/trigger` — trigger a rule on demand. Requires
     /// `TRIGGER_RULES` on the rule. `idempotency_key` is optional; pass a
-    /// stable key (e.g. a deterministic event id) if you want retries of the
-    /// *same* logical trigger to be deduplicated server-side for 24h. Passing
-    /// `None` sends no key, so each call executes independently.
+    /// stable key (e.g. a deterministic event id) if you want repeated calls for
+    /// the *same* logical trigger to be deduplicated server-side for 24h. With
+    /// `None` the client generates a one-off key so its own retries are safe, but
+    /// separate calls still execute independently.
     async fn trigger_rule(
         &self,
         id: &RuleId,
@@ -317,7 +331,9 @@ where
     // ----- Transfers ------------------------------------------------------
 
     /// `POST /transfers` — create a manual transfer. Requires `MANUAL_TRANSFER`
-    /// for the {source, target} pair. Idempotency-key is recommended.
+    /// for the {source, target} pair. Pass a stable idempotency key to dedupe
+    /// repeated calls; with `None` the client generates a one-off key so its own
+    /// retries can't create the transfer twice.
     async fn create_transfer(
         &self,
         request: &CreateTransferRequest,

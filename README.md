@@ -60,7 +60,7 @@ the [API docs](https://app.getsequence.io/api/platform/).
 ## Behavior
 
 - **Envelopes** are unwrapped automatically; error bodies become `ClientError::Api`, anything else `ClientError::Http`.
-- **Idempotency** — `trigger_rule`/`create_transfer` take `Option<&str>`; a supplied key rides every retry (24h server dedup), `None` sends none. Pass one to make a mutating call retry-safe.
+- **Idempotency** — `trigger_rule`/`create_transfer` take `Option<&str>`; a supplied key rides every retry (24h server dedup). With `None` the client auto-generates a one-off key for the call so its own retries can't double-apply — but that doesn't dedupe across separate calls, so pass your own stable key to make repeated calls retry-safe.
 - **Rate limiting** — token bucket, default 100 req/min (the server ceiling), burstable; `Config.rate_limit = None` disables.
 - **Retries** — `429`/`5xx`/network blips with full-jitter backoff honouring `Retry-After`, bounded by `max_attempts` and an optional `max_elapsed_time` deadline; `Config::default().no_retries()` turns them off.
 - **Validation** — `create_transfer` enforces the spec's input rules before sending.
