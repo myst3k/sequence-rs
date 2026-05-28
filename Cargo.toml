@@ -1,0 +1,48 @@
+[package]
+name = "sequence-rs"
+version = "0.1.0"
+edition = "2021"
+description = "Rust client for the Sequence Platform API (https://app.getsequence.io)"
+license = "MIT OR Apache-2.0"
+
+[workspace]
+members = [
+    "sequence-rs-http",
+    "sequence-rs-model",
+]
+
+[workspace.dependencies]
+eyre = "0.6"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+reqwest = { version = "0.12", default-features = false }
+tokio = { version = "1" }
+bon = "3"
+serde = { version = "1", default-features = false }
+serde_json = "1"
+thiserror = "1.0.63"
+
+[dependencies]
+sequence-rs-http = { path = "sequence-rs-http" }
+sequence-rs-model = { path = "sequence-rs-model" }
+tracing = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+bon = { workspace = true }
+secrecy = "0.8"
+dotenvy = { version = "0.15", optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+url = "2.5"
+thiserror = { workspace = true }
+futures = "0.3"
+
+[features]
+env-file = ["dotenvy"]
+
+[dev-dependencies]
+tracing-subscriber = { workspace = true }
+eyre = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+wiremock = "0.6"
+rstest = "0.23"
+serde_json = { workspace = true }

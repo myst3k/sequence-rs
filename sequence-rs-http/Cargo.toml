@@ -1,0 +1,17 @@
+[package]
+name = "sequence-rs-http"
+version = "0.1.0"
+edition = "2021"
+description = "HTTP layer (reqwest wrapper, retries, rate limiting) for the sequence-rs client"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+serde_json = { workspace = true }
+reqwest = { workspace = true, features = ["json", "rustls-tls"] }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
+rand = "0.8"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

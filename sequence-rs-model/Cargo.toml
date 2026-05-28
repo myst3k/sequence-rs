@@ -1,0 +1,11 @@
+[package]
+name = "sequence-rs-model"
+version = "0.1.0"
+edition = "2021"
+description = "Request/response types for the Sequence Platform API (used by sequence-rs)"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+serde = { workspace = true, features = ["derive", "std"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

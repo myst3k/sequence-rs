@@ -1,0 +1,9 @@
+/target
+**/*.rs.bk
+Cargo.lock
+.env
+.idea/
+.DS_Store
+
+# Vendored API spec — fetch locally via scripts/fetch_openapi.py
+docs/openapi.yaml
