@@ -11,11 +11,14 @@ use url::Url;
 
 use sequence_rs_http::{BaseHttpClient, Headers, HttpClient, Query};
 use sequence_rs_model::account::{Account, AccountId, AccountState, AccountType, AccountsData};
+use sequence_rs_model::audit_log::{AuditLogData, SequenceApiAction};
 use sequence_rs_model::common::ApiResponse;
+use sequence_rs_model::external_transaction::ExternalTransactionsData;
 use sequence_rs_model::rule::{
-    Rule, RuleExecution, RuleExecutionId, RuleExecutionStatus, RuleExecutionsData, RuleId,
-    RulesData, TriggerRuleRequest, TriggerRuleResponse, TriggerType,
+    Rule, RuleExecution, RuleExecutionId, RuleExecutionListMode, RuleExecutionStatus,
+    RuleExecutionsData, RuleId, RulesData, TriggerRuleRequest, TriggerRuleResponse, TriggerType,
 };
+use sequence_rs_model::transaction::TransactionsData;
 use sequence_rs_model::transfer::{
     CreateTransferRequest, Transfer, TransferDirection, TransferId, TransferOriginFilter,
     TransferStatus, TransfersData,
@@ -89,6 +92,47 @@ pub struct ListRulesParams {
 pub struct ListRuleExecutionsParams {
     pub status: Option<RuleExecutionStatus>,
     pub trigger_type: Option<TriggerType>,
+    /// Filter by execution mode (`LIVE`/`SIMULATION`/`ALL`); the API defaults to
+    /// `LIVE` (real executions only) when omitted.
+    pub execution_mode: Option<RuleExecutionListMode>,
+    pub from: Option<String>,
+    pub to: Option<String>,
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
+}
+
+/// Query parameters for `GET /card-transactions`. The required `accountId` is
+/// passed to [`BaseClient::card_transactions`] directly.
+#[derive(Debug, Default, Clone)]
+pub struct ListCardTransactionsParams {
+    /// Filter to a single card.
+    pub card_id: Option<String>,
+    pub from: Option<String>,
+    pub to: Option<String>,
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
+}
+
+/// Query parameters for `GET /external-transactions`. The required `accountIds`
+/// (one or more) is passed to [`BaseClient::external_transactions`] directly.
+#[derive(Debug, Default, Clone)]
+pub struct ListExternalTransactionsParams {
+    /// `MONEY_IN` / `MONEY_OUT` (reuses [`TransferDirection`]; `INTERNAL` is n/a).
+    pub direction: Option<TransferDirection>,
+    /// `PENDING` / `COMPLETE` (reuses [`TransferStatus`]).
+    pub status: Option<TransferStatus>,
+    pub from: Option<String>,
+    pub to: Option<String>,
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
+}
+
+/// Query parameters for `GET /audit-logs`.
+#[derive(Debug, Default, Clone)]
+pub struct ListAuditLogParams {
+    pub api_key_id: Option<String>,
+    pub action: Option<SequenceApiAction>,
+    /// ISO 8601; must be within the last 90 days (defaults to 90 days ago).
     pub from: Option<String>,
     pub to: Option<String>,
     pub page: Option<u32>,
@@ -290,6 +334,9 @@ where
         if let Some(t) = params.trigger_type {
             query.push(("triggerType".into(), scream(&t)?));
         }
+        if let Some(m) = params.execution_mode {
+            query.push(("executionMode".into(), scream(&m)?));
+        }
         if let Some(f) = &params.from {
             query.push(("from".into(), f.clone()));
         }
@@ -354,5 +401,97 @@ where
             .api_get(&["transfers", id.as_str()], &Query::new())
             .await?;
         convert_result::<ApiResponse<Transfer>>(&body).map(|r| r.data)
+    }
+
+    // ----- Card & external transactions -----------------------------------
+
+    /// `GET /card-transactions` — list card transactions (debit/omni-card
+    /// purchases and refunds) funded by `account_id`. This is the only way to
+    /// see card spend; [`account_transfers`](Self::account_transfers) excludes it.
+    async fn card_transactions(
+        &self,
+        account_id: &AccountId,
+        params: &ListCardTransactionsParams,
+    ) -> ClientResult<TransactionsData> {
+        let mut query: Query = Query::new();
+        query.push(("accountId".into(), account_id.clone()));
+        if let Some(c) = &params.card_id {
+            query.push(("cardId".into(), c.clone()));
+        }
+        if let Some(f) = &params.from {
+            query.push(("from".into(), f.clone()));
+        }
+        if let Some(t) = &params.to {
+            query.push(("to".into(), t.clone()));
+        }
+        if let Some(p) = params.page {
+            query.push(("page".into(), p.to_string()));
+        }
+        if let Some(ps) = params.page_size {
+            query.push(("pageSize".into(), ps.to_string()));
+        }
+        let body = self.api_get(&["card-transactions"], &query).await?;
+        convert_result::<ApiResponse<TransactionsData>>(&body).map(|r| r.data)
+    }
+
+    /// `GET /external-transactions` — list external (bank/ACH) transactions on
+    /// one or more linked `EXTERNAL_ACCOUNT`s. `account_ids` must be non-empty.
+    async fn external_transactions(
+        &self,
+        account_ids: &[AccountId],
+        params: &ListExternalTransactionsParams,
+    ) -> ClientResult<ExternalTransactionsData> {
+        let mut query: Query = Query::new();
+        for id in account_ids {
+            query.push(("accountIds".into(), id.clone()));
+        }
+        if let Some(d) = params.direction {
+            query.push(("direction".into(), scream(&d)?));
+        }
+        if let Some(s) = params.status {
+            query.push(("status".into(), scream(&s)?));
+        }
+        if let Some(f) = &params.from {
+            query.push(("from".into(), f.clone()));
+        }
+        if let Some(t) = &params.to {
+            query.push(("to".into(), t.clone()));
+        }
+        if let Some(p) = params.page {
+            query.push(("page".into(), p.to_string()));
+        }
+        if let Some(ps) = params.page_size {
+            query.push(("pageSize".into(), ps.to_string()));
+        }
+        let body = self.api_get(&["external-transactions"], &query).await?;
+        convert_result::<ApiResponse<ExternalTransactionsData>>(&body).map(|r| r.data)
+    }
+
+    // ----- Audit log ------------------------------------------------------
+
+    /// `GET /audit-logs` — list audit-log entries for this API key. `from` must
+    /// be within the last 90 days (defaults to 90 days ago when omitted).
+    async fn audit_logs(&self, params: &ListAuditLogParams) -> ClientResult<AuditLogData> {
+        let mut query: Query = Query::new();
+        if let Some(k) = &params.api_key_id {
+            query.push(("apiKeyId".into(), k.clone()));
+        }
+        if let Some(a) = params.action {
+            query.push(("action".into(), scream(&a)?));
+        }
+        if let Some(f) = &params.from {
+            query.push(("from".into(), f.clone()));
+        }
+        if let Some(t) = &params.to {
+            query.push(("to".into(), t.clone()));
+        }
+        if let Some(p) = params.page {
+            query.push(("page".into(), p.to_string()));
+        }
+        if let Some(ps) = params.page_size {
+            query.push(("pageSize".into(), ps.to_string()));
+        }
+        let body = self.api_get(&["audit-logs"], &query).await?;
+        convert_result::<ApiResponse<AuditLogData>>(&body).map(|r| r.data)
     }
 }

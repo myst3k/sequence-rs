@@ -56,6 +56,9 @@ the [API docs](https://app.getsequence.io/api/platform/).
 | `rule_execution` | `GET /rules/{id}/executions/{id}` | full `RuleExecution` |
 | `create_transfer` | `POST /transfers` | `Transfer` |
 | `transfer` | `GET /transfers/{id}` | `Transfer` |
+| `card_transactions` / `card_transactions_stream` | `GET /card-transactions` | `Transaction` |
+| `external_transactions` / `external_transactions_stream` | `GET /external-transactions` | `ExternalTransaction` |
+| `audit_logs` / `audit_logs_stream` | `GET /audit-logs` | `AuditLogEntry` |
 
 ## Behavior
 
@@ -64,6 +67,7 @@ the [API docs](https://app.getsequence.io/api/platform/).
 - **Rate limiting** — token bucket, default 100 req/min (the server ceiling), burstable; `Config.rate_limit = None` disables.
 - **Retries** — `429`/`5xx`/network blips with full-jitter backoff honouring `Retry-After`, bounded by `max_attempts` and an optional `max_elapsed_time` deadline; `Config::default().no_retries()` turns them off.
 - **Validation** — `create_transfer` enforces the spec's input rules before sending.
+- **Simulation** — `trigger_rule` takes `simulation: Some(true)` for a dry run (no money moved); list executions by `execution_mode` (`LIVE` / `SIMULATION` / `ALL`), and each `RuleExecution` carries its `execution_mode`.
 - **Pagination** — the API has no `total`, so `*_stream` stops on a short page.
 
 ## Configuration

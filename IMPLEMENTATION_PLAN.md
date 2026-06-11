@@ -15,9 +15,10 @@ via `scripts/fetch_openapi.py`.
 
 ## What's implemented
 
-- **All 10 endpoints**, each returning fully-typed models that match the spec's
+- **All 13 endpoints**, each returning fully-typed models that match the spec's
   schemas (list endpoints return the `*Summary` shape; detail endpoints return the
-  full shape).
+  full shape). Includes `card-transactions`, `external-transactions`, and
+  `audit-logs`, plus `SIMULATION` rule execution mode.
 - **Discriminated unions** modelled with serde: `Trigger`, `RuleAction`
   (8 variants over a shared `RuleActionBase`, via flattened `{ base, kind }`),
   `TriggerDetails`, and the recursive `ChainableRuleCondition` (`condition`/`any`/`all`).

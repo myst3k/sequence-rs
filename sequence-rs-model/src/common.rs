@@ -10,6 +10,10 @@ pub type Cents = i64;
 pub struct Pagination {
     pub page: u32,
     pub page_size: u32,
+    /// Whether another page exists. Older responses omit it, so it defaults to
+    /// `false`; the `*_stream` helpers don't rely on it (they stop on a short page).
+    #[serde(default)]
+    pub has_next_page: bool,
 }
 
 /// The `data` of a paginated list response.

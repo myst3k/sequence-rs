@@ -89,6 +89,7 @@ async fn trigger_rule_with_key_sends_it_verbatim() {
             &RULE_ID.to_string(),
             &TriggerRuleRequest {
                 execute_amount: Some(150000),
+                ..Default::default()
             },
             Some("my-stable-key"),
         )
@@ -116,6 +117,7 @@ async fn trigger_rule_serializes_execute_amount() {
             &RULE_ID.to_string(),
             &TriggerRuleRequest {
                 execute_amount: Some(150000),
+                ..Default::default()
             },
             None,
         )

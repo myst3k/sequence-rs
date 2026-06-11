@@ -23,7 +23,8 @@ pub use sequence_rs_model as model;
 
 // List-endpoint query builders, re-exported (the `clients` module is private).
 pub use clients::base::{
-    AccountRole, ListAccountTransfersParams, ListAccountsParams, ListRuleExecutionsParams,
+    AccountRole, ListAccountTransfersParams, ListAccountsParams, ListAuditLogParams,
+    ListCardTransactionsParams, ListExternalTransactionsParams, ListRuleExecutionsParams,
     ListRulesParams,
 };
 

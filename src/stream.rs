@@ -5,11 +5,15 @@
 use futures::stream::{self, Stream, TryStreamExt};
 
 use sequence_rs_model::account::{AccountId, AccountSummary};
+use sequence_rs_model::audit_log::AuditLogEntry;
+use sequence_rs_model::external_transaction::ExternalTransaction;
 use sequence_rs_model::rule::{RuleExecutionSummary, RuleId, RuleSummary};
+use sequence_rs_model::transaction::Transaction;
 use sequence_rs_model::transfer::Transfer;
 
 use crate::clients::base::{
-    ListAccountTransfersParams, ListAccountsParams, ListRuleExecutionsParams, ListRulesParams,
+    ListAccountTransfersParams, ListAccountsParams, ListAuditLogParams, ListCardTransactionsParams,
+    ListExternalTransactionsParams, ListRuleExecutionsParams, ListRulesParams,
 };
 use crate::clients::BaseClient;
 use crate::{ClientError, ClientResult, Sequence};
@@ -83,6 +87,62 @@ impl Sequence {
             p.page = Some(page);
             p.page_size = Some(page_size);
             let resp = self.rule_executions(rule_id, &p).await?;
+            let next = next_page(resp.items.len(), page, page_size);
+            Ok::<_, ClientError>(Some((stream::iter(resp.items.into_iter().map(Ok)), next)))
+        })
+        .try_flatten()
+    }
+
+    /// Stream every card transaction for an account across all pages.
+    pub fn card_transactions_stream<'a>(
+        &'a self,
+        account_id: &'a AccountId,
+        params: &'a ListCardTransactionsParams,
+    ) -> impl Stream<Item = ClientResult<Transaction>> + 'a {
+        let page_size = resolve_page_size(params.page_size, self.config.default_page_size);
+        stream::try_unfold(Some(1u32), move |state| async move {
+            let Some(page) = state else { return Ok(None) };
+            let mut p = params.clone();
+            p.page = Some(page);
+            p.page_size = Some(page_size);
+            let resp = self.card_transactions(account_id, &p).await?;
+            let next = next_page(resp.items.len(), page, page_size);
+            Ok::<_, ClientError>(Some((stream::iter(resp.items.into_iter().map(Ok)), next)))
+        })
+        .try_flatten()
+    }
+
+    /// Stream every external transaction for the given accounts across all pages.
+    pub fn external_transactions_stream<'a>(
+        &'a self,
+        account_ids: &'a [AccountId],
+        params: &'a ListExternalTransactionsParams,
+    ) -> impl Stream<Item = ClientResult<ExternalTransaction>> + 'a {
+        let page_size = resolve_page_size(params.page_size, self.config.default_page_size);
+        stream::try_unfold(Some(1u32), move |state| async move {
+            let Some(page) = state else { return Ok(None) };
+            let mut p = params.clone();
+            p.page = Some(page);
+            p.page_size = Some(page_size);
+            let resp = self.external_transactions(account_ids, &p).await?;
+            let next = next_page(resp.items.len(), page, page_size);
+            Ok::<_, ClientError>(Some((stream::iter(resp.items.into_iter().map(Ok)), next)))
+        })
+        .try_flatten()
+    }
+
+    /// Stream every audit-log entry across all pages (`GET /audit-logs`).
+    pub fn audit_logs_stream<'a>(
+        &'a self,
+        params: &'a ListAuditLogParams,
+    ) -> impl Stream<Item = ClientResult<AuditLogEntry>> + 'a {
+        let page_size = resolve_page_size(params.page_size, self.config.default_page_size);
+        stream::try_unfold(Some(1u32), move |state| async move {
+            let Some(page) = state else { return Ok(None) };
+            let mut p = params.clone();
+            p.page = Some(page);
+            p.page_size = Some(page_size);
+            let resp = self.audit_logs(&p).await?;
             let next = next_page(resp.items.len(), page, page_size);
             Ok::<_, ClientError>(Some((stream::iter(resp.items.into_iter().map(Ok)), next)))
         })

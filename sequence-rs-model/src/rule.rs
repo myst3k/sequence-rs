@@ -253,6 +253,10 @@ pub struct RuleExecutionSummary {
     pub id: RuleExecutionId,
     pub rule_id: RuleId,
     pub status: RuleExecutionStatus,
+    /// Whether this was a real (`LIVE`) execution or a `SIMULATION` dry run.
+    /// Older responses omit it; defaults to `LIVE`.
+    #[serde(default)]
+    pub execution_mode: ExecutionMode,
     pub created_at: String,
 }
 
@@ -282,6 +286,30 @@ pub enum RuleExecutionStatus {
     Partial,
     InProgress,
     Failed,
+}
+
+/// Whether a rule execution moved real money or was a dry run.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ExecutionMode {
+    /// Real money movement.
+    #[default]
+    Live,
+    /// Dry run; no money moved.
+    Simulation,
+}
+
+/// `executionMode` filter for `listRuleExecutions`; defaults to `LIVE`.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RuleExecutionListMode {
+    /// Real executions only (the default).
+    #[default]
+    Live,
+    /// Dry-run simulations only.
+    Simulation,
+    /// Both real and simulated executions.
+    All,
 }
 
 /// What triggered an execution, discriminated on `type`.
@@ -321,6 +349,11 @@ pub enum TriggerType {
 pub struct TriggerRuleRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execute_amount: Option<i64>,
+    /// Run as a dry run (`SIMULATION`) — compute the transfers without moving
+    /// money. Omitted/`None` means a live run. The resulting execution (and any
+    /// transfers) are marked `executionMode: SIMULATION`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub simulation: Option<bool>,
 }
 
 /// 202 `data` of `POST /rules/{id}/trigger`; poll `execution_id` for the outcome.
