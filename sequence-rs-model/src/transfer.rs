@@ -65,6 +65,8 @@ pub enum TransferOrigin {
     Rule,
     User,
     ExternalPull,
+    /// The API's own `UNKNOWN`, and any origin added after this crate version.
+    #[serde(other)]
     Unknown,
 }
 
@@ -82,17 +84,36 @@ pub enum TransferOriginFilter {
     ExternalPull,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransferStatus {
-    #[default]
-    PendingApproval,
+    /// Waiting on a human approver; no money has moved.
+    ApprovalPending,
     Processing,
     Pending,
     Complete,
     Incomplete,
     Error,
     Cancelled,
+    /// Denied, or the approval request expired after 72 hours. Never runs.
+    ApprovalDenied,
+    /// A status added after this crate version. Treat as not settled.
+    #[serde(other)]
+    Unknown,
+}
+
+/// `status` filter values — [`TransferStatus`] minus the client-side `Unknown`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TransferStatusFilter {
+    ApprovalPending,
+    Processing,
+    Pending,
+    Complete,
+    Incomplete,
+    Error,
+    Cancelled,
+    ApprovalDenied,
 }
 
 /// Body for `POST /transfers`.

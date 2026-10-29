@@ -59,7 +59,7 @@ pub enum Trigger {
     },
     Scheduled {
         schedule_type: ScheduleType,
-        start_date: String,
+        start_date: Option<String>,
         account_id: Option<String>,
     },
     Manual {
@@ -286,6 +286,10 @@ pub enum RuleExecutionStatus {
     Partial,
     InProgress,
     Failed,
+    /// Waiting on a human approver before it runs.
+    ApprovalPending,
+    /// Denied, or the approval request expired after 72 hours. Never runs.
+    ApprovalDenied,
 }
 
 /// Whether a rule execution moved real money or was a dry run.
@@ -361,6 +365,15 @@ pub struct TriggerRuleRequest {
 #[serde(rename_all = "camelCase")]
 pub struct TriggerRuleResponse {
     pub execution_id: String,
+    /// Required by the spec; optional here so a missing field can't turn an
+    /// accepted trigger into a client error.
+    #[serde(default)]
+    pub status: Option<RuleExecutionStatus>,
+    #[serde(default)]
+    pub reason_for_approval: Option<String>,
+    /// Set only when `status` is `APPROVAL_PENDING`.
+    #[serde(default)]
+    pub approval_url: Option<String>,
 }
 
 pub type RulesData = Paginated<RuleSummary>;

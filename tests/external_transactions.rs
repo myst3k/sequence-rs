@@ -1,6 +1,7 @@
 mod helpers;
 
 use helpers::{client, envelope};
+use sequence_rs::model::external_transaction::ExternalTransactionStatusFilter;
 use sequence_rs::model::transfer::{TransferDirection, TransferStatus};
 use sequence_rs::prelude::*;
 use sequence_rs::ListExternalTransactionsParams;
@@ -70,7 +71,7 @@ async fn list_external_transactions_sends_filters_and_multiple_accounts() {
     let client = client(&server.uri());
     let params = ListExternalTransactionsParams {
         direction: Some(TransferDirection::MoneyOut),
-        status: Some(TransferStatus::Pending),
+        status: Some(ExternalTransactionStatusFilter::Pending),
         ..Default::default()
     };
     client

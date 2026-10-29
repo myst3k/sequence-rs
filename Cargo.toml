@@ -1,6 +1,6 @@
 [package]
 name = "sequence-rs"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Rust client for the Sequence Platform API (https://app.getsequence.io)"
 license = "MIT OR Apache-2.0"

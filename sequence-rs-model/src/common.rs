@@ -3,15 +3,14 @@ use serde::{Deserialize, Serialize};
 /// Money amounts in the Sequence API are integer cents.
 pub type Cents = i64;
 
-/// Pagination metadata. The API exposes no `total`, so paginators stop on a
-/// short page.
+/// Pagination metadata. The API exposes no `total`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Pagination {
     pub page: u32,
     pub page_size: u32,
     /// Whether another page exists. Older responses omit it, so it defaults to
-    /// `false`; the `*_stream` helpers don't rely on it (they stop on a short page).
+    /// `false`; the `*_stream` helpers then fall back to "a full page continues".
     #[serde(default)]
     pub has_next_page: bool,
 }

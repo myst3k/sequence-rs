@@ -37,6 +37,11 @@ pub enum CardType {
 pub enum CardTransactionSubtype {
     Purchase,
     Refund,
+    /// Incoming push-to-card payout (`MONEY_IN`); income, not a refund.
+    Payout,
+    /// A subtype added after this crate version.
+    #[serde(other)]
+    Unknown,
 }
 
 pub type TransactionsData = Paginated<Transaction>;

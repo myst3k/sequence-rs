@@ -21,4 +21,12 @@ pub struct ExternalTransaction {
     pub transaction_date: String,
 }
 
+/// `status` filter for `GET /external-transactions`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ExternalTransactionStatusFilter {
+    Pending,
+    Complete,
+}
+
 pub type ExternalTransactionsData = Paginated<ExternalTransaction>;

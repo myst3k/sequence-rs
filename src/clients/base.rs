@@ -13,7 +13,9 @@ use sequence_rs_http::{BaseHttpClient, Headers, HttpClient, Query};
 use sequence_rs_model::account::{Account, AccountId, AccountState, AccountType, AccountsData};
 use sequence_rs_model::audit_log::{AuditLogData, SequenceApiAction};
 use sequence_rs_model::common::ApiResponse;
-use sequence_rs_model::external_transaction::ExternalTransactionsData;
+use sequence_rs_model::external_transaction::{
+    ExternalTransactionStatusFilter, ExternalTransactionsData,
+};
 use sequence_rs_model::rule::{
     Rule, RuleExecution, RuleExecutionId, RuleExecutionListMode, RuleExecutionStatus,
     RuleExecutionsData, RuleId, RulesData, TriggerRuleRequest, TriggerRuleResponse, TriggerType,
@@ -21,7 +23,7 @@ use sequence_rs_model::rule::{
 use sequence_rs_model::transaction::TransactionsData;
 use sequence_rs_model::transfer::{
     CreateTransferRequest, Transfer, TransferDirection, TransferId, TransferOriginFilter,
-    TransferStatus, TransfersData,
+    TransferStatusFilter, TransfersData,
 };
 
 use crate::clients::convert_result;
@@ -68,7 +70,7 @@ pub struct ListAccountsParams {
 pub struct ListAccountTransfersParams {
     pub account_role: Option<AccountRole>,
     pub direction: Option<TransferDirection>,
-    pub status: Option<TransferStatus>,
+    pub status: Option<TransferStatusFilter>,
     /// Filter by origin. Uses [`TransferOriginFilter`] (no response-only
     /// `UNKNOWN`), so an invalid filter value can't be constructed.
     pub origin: Option<TransferOriginFilter>,
@@ -119,8 +121,7 @@ pub struct ListCardTransactionsParams {
 pub struct ListExternalTransactionsParams {
     /// `MONEY_IN` / `MONEY_OUT` (reuses [`TransferDirection`]; `INTERNAL` is n/a).
     pub direction: Option<TransferDirection>,
-    /// `PENDING` / `COMPLETE` (reuses [`TransferStatus`]).
-    pub status: Option<TransferStatus>,
+    pub status: Option<ExternalTransactionStatusFilter>,
     pub from: Option<String>,
     pub to: Option<String>,
     pub page: Option<u32>,

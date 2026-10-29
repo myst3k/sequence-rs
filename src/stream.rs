@@ -1,11 +1,11 @@
 //! Auto-paginating `*_stream` helpers: yield every item across pages, fetched
-//! lazily. The API exposes no total, so a stream stops once a page comes back
-//! shorter than the requested size.
+//! lazily, starting at `params.page` (default 1) and following `hasNextPage`.
 
 use futures::stream::{self, Stream, TryStreamExt};
 
 use sequence_rs_model::account::{AccountId, AccountSummary};
 use sequence_rs_model::audit_log::AuditLogEntry;
+use sequence_rs_model::common::Pagination;
 use sequence_rs_model::external_transaction::ExternalTransaction;
 use sequence_rs_model::rule::{RuleExecutionSummary, RuleId, RuleSummary};
 use sequence_rs_model::transaction::Transaction;
@@ -25,13 +25,13 @@ impl Sequence {
         params: &'a ListAccountsParams,
     ) -> impl Stream<Item = ClientResult<AccountSummary>> + 'a {
         let page_size = resolve_page_size(params.page_size, self.config.default_page_size);
-        stream::try_unfold(Some(1u32), move |state| async move {
+        stream::try_unfold(Some(first_page(params.page)), move |state| async move {
             let Some(page) = state else { return Ok(None) };
             let mut p = params.clone();
             p.page = Some(page);
             p.page_size = Some(page_size);
             let resp = self.accounts(&p).await?;
-            let next = next_page(resp.items.len(), page, page_size);
+            let next = next_page(&resp.pagination, resp.items.len(), page, page_size);
             Ok::<_, ClientError>(Some((stream::iter(resp.items.into_iter().map(Ok)), next)))
         })
         .try_flatten()
@@ -44,13 +44,13 @@ impl Sequence {
         params: &'a ListAccountTransfersParams,
     ) -> impl Stream<Item = ClientResult<Transfer>> + 'a {
         let page_size = resolve_page_size(params.page_size, self.config.default_page_size);
-        stream::try_unfold(Some(1u32), move |state| async move {
+        stream::try_unfold(Some(first_page(params.page)), move |state| async move {
             let Some(page) = state else { return Ok(None) };
             let mut p = params.clone();
             p.page = Some(page);
             p.page_size = Some(page_size);
             let resp = self.account_transfers(account_id, &p).await?;
-            let next = next_page(resp.items.len(), page, page_size);
+            let next = next_page(&resp.pagination, resp.items.len(), page, page_size);
             Ok::<_, ClientError>(Some((stream::iter(resp.items.into_iter().map(Ok)), next)))
         })
         .try_flatten()
@@ -62,13 +62,13 @@ impl Sequence {
         params: &'a ListRulesParams,
     ) -> impl Stream<Item = ClientResult<RuleSummary>> + 'a {
         let page_size = resolve_page_size(params.page_size, self.config.default_page_size);
-        stream::try_unfold(Some(1u32), move |state| async move {
+        stream::try_unfold(Some(first_page(params.page)), move |state| async move {
             let Some(page) = state else { return Ok(None) };
             let mut p = params.clone();
             p.page = Some(page);
             p.page_size = Some(page_size);
             let resp = self.rules(&p).await?;
-            let next = next_page(resp.items.len(), page, page_size);
+            let next = next_page(&resp.pagination, resp.items.len(), page, page_size);
             Ok::<_, ClientError>(Some((stream::iter(resp.items.into_iter().map(Ok)), next)))
         })
         .try_flatten()
@@ -81,13 +81,13 @@ impl Sequence {
         params: &'a ListRuleExecutionsParams,
     ) -> impl Stream<Item = ClientResult<RuleExecutionSummary>> + 'a {
         let page_size = resolve_page_size(params.page_size, self.config.default_page_size);
-        stream::try_unfold(Some(1u32), move |state| async move {
+        stream::try_unfold(Some(first_page(params.page)), move |state| async move {
             let Some(page) = state else { return Ok(None) };
             let mut p = params.clone();
             p.page = Some(page);
             p.page_size = Some(page_size);
             let resp = self.rule_executions(rule_id, &p).await?;
-            let next = next_page(resp.items.len(), page, page_size);
+            let next = next_page(&resp.pagination, resp.items.len(), page, page_size);
             Ok::<_, ClientError>(Some((stream::iter(resp.items.into_iter().map(Ok)), next)))
         })
         .try_flatten()
@@ -100,13 +100,13 @@ impl Sequence {
         params: &'a ListCardTransactionsParams,
     ) -> impl Stream<Item = ClientResult<Transaction>> + 'a {
         let page_size = resolve_page_size(params.page_size, self.config.default_page_size);
-        stream::try_unfold(Some(1u32), move |state| async move {
+        stream::try_unfold(Some(first_page(params.page)), move |state| async move {
             let Some(page) = state else { return Ok(None) };
             let mut p = params.clone();
             p.page = Some(page);
             p.page_size = Some(page_size);
             let resp = self.card_transactions(account_id, &p).await?;
-            let next = next_page(resp.items.len(), page, page_size);
+            let next = next_page(&resp.pagination, resp.items.len(), page, page_size);
             Ok::<_, ClientError>(Some((stream::iter(resp.items.into_iter().map(Ok)), next)))
         })
         .try_flatten()
@@ -119,13 +119,13 @@ impl Sequence {
         params: &'a ListExternalTransactionsParams,
     ) -> impl Stream<Item = ClientResult<ExternalTransaction>> + 'a {
         let page_size = resolve_page_size(params.page_size, self.config.default_page_size);
-        stream::try_unfold(Some(1u32), move |state| async move {
+        stream::try_unfold(Some(first_page(params.page)), move |state| async move {
             let Some(page) = state else { return Ok(None) };
             let mut p = params.clone();
             p.page = Some(page);
             p.page_size = Some(page_size);
             let resp = self.external_transactions(account_ids, &p).await?;
-            let next = next_page(resp.items.len(), page, page_size);
+            let next = next_page(&resp.pagination, resp.items.len(), page, page_size);
             Ok::<_, ClientError>(Some((stream::iter(resp.items.into_iter().map(Ok)), next)))
         })
         .try_flatten()
@@ -137,31 +137,78 @@ impl Sequence {
         params: &'a ListAuditLogParams,
     ) -> impl Stream<Item = ClientResult<AuditLogEntry>> + 'a {
         let page_size = resolve_page_size(params.page_size, self.config.default_page_size);
-        stream::try_unfold(Some(1u32), move |state| async move {
+        stream::try_unfold(Some(first_page(params.page)), move |state| async move {
             let Some(page) = state else { return Ok(None) };
             let mut p = params.clone();
             p.page = Some(page);
             p.page_size = Some(page_size);
             let resp = self.audit_logs(&p).await?;
-            let next = next_page(resp.items.len(), page, page_size);
+            let next = next_page(&resp.pagination, resp.items.len(), page, page_size);
             Ok::<_, ClientError>(Some((stream::iter(resp.items.into_iter().map(Ok)), next)))
         })
         .try_flatten()
     }
 }
 
-/// The next page to request, or `None` to stop. A short page (fewer items than
-/// requested) is the last one, since the API exposes no total count.
-fn next_page(items: usize, page: u32, page_size: u32) -> Option<u32> {
-    if (items as u32) < page_size {
-        None
-    } else {
+/// The next page to request, or `None` to stop. `hasNextPage` is authoritative;
+/// a full page also continues, for responses that omit the flag. An empty page
+/// always stops, so a stuck flag can't loop forever.
+fn next_page(meta: &Pagination, items: usize, page: u32, page_size: u32) -> Option<u32> {
+    if items > 0 && (meta.has_next_page || items as u32 >= page_size) {
         Some(page + 1)
+    } else {
+        None
     }
 }
 
-/// Clamped to >=1: a page size of 0 would never satisfy the short-page
-/// terminator and would loop forever.
+fn first_page(requested: Option<u32>) -> u32 {
+    requested.unwrap_or(1).max(1)
+}
+
+/// The API caps `pageSize` at 100. Asking for more would return 100 items, which
+/// would look like a short page.
+const MAX_PAGE_SIZE: u32 = 100;
+
 fn resolve_page_size(requested: Option<u32>, default: u32) -> u32 {
-    requested.unwrap_or(default).max(1)
+    requested.unwrap_or(default).clamp(1, MAX_PAGE_SIZE)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn meta(has_next_page: bool) -> Pagination {
+        Pagination {
+            page: 1,
+            page_size: 10,
+            has_next_page,
+        }
+    }
+
+    #[test]
+    fn next_page_trusts_has_next_page_on_a_short_page() {
+        assert_eq!(next_page(&meta(true), 3, 2, 10), Some(3));
+    }
+
+    #[test]
+    fn next_page_stops_on_short_page_without_flag() {
+        assert_eq!(next_page(&meta(false), 3, 2, 10), None);
+    }
+
+    #[test]
+    fn next_page_continues_on_full_page_without_flag() {
+        assert_eq!(next_page(&meta(false), 10, 1, 10), Some(2));
+    }
+
+    #[test]
+    fn next_page_stops_on_empty_page_even_if_flagged() {
+        assert_eq!(next_page(&meta(true), 0, 4, 10), None);
+    }
+
+    #[test]
+    fn page_size_is_clamped_to_api_range() {
+        assert_eq!(resolve_page_size(Some(500), 10), 100);
+        assert_eq!(resolve_page_size(Some(0), 10), 1);
+        assert_eq!(resolve_page_size(None, 25), 25);
+    }
 }
